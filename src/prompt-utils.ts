@@ -2,6 +2,32 @@ import type { AppIdea, InterestingPrompt, PromptEntry } from './model';
 
 export const SECOND_ACT_VISIBLE_COUNT = 4;
 
+const promptQuotePairs: readonly [string, string][] = [
+  ['"', '"'],
+  ['“', '”'],
+  ['‘', '’'],
+];
+
+function stripPromptWrapper(value: string): string {
+  let prompt = value.trim();
+  const firstCharacter = prompt[0] ?? '';
+  const lastCharacter = prompt.at(-1) ?? '';
+  const matchingPair = promptQuotePairs.find(([opening, closing]) => firstCharacter === opening && lastCharacter === closing);
+
+  if (matchingPair) {
+    prompt = prompt.slice(1, -1).trim();
+  } else if (firstCharacter === '"' || firstCharacter === '“' || firstCharacter === '‘') {
+    prompt = prompt.slice(1).trim();
+  }
+
+  const remainingLastCharacter = prompt.at(-1) ?? '';
+  if (remainingLastCharacter === '"' || remainingLastCharacter === '”' || remainingLastCharacter === '’') {
+    prompt = prompt.slice(0, -1).trim();
+  }
+
+  return prompt;
+}
+
 function positiveModulo(value: number, length: number): number {
   return ((value % length) + length) % length;
 }
@@ -50,17 +76,17 @@ export function pickRandomIdea(
 }
 
 export function buildStarterPrompt(idea: AppIdea): string {
-  return idea.starterPrompt.trim();
+  return stripPromptWrapper(idea.starterPrompt);
 }
 
 export function buildFeaturePrompt(_idea: AppIdea, feature: PromptEntry): string {
-  return feature.prompt.trim();
+  return stripPromptWrapper(feature.prompt);
 }
 
 export function buildAnglePrompt(idea: AppIdea, prompt: InterestingPrompt): string {
   return [
     `The “${idea.title}” app is already built and working. Modify it in place; do not recreate it from scratch.`,
-    prompt.prompt.trim(),
+    stripPromptWrapper(prompt.prompt),
     `Keep the app usable as a single HTML file and preserve the original constraints: ${idea.constraints.trim()}.`,
     'Make the change as a focused next iteration, then briefly explain what changed and how the group can see and test the result.',
   ].join('\n\n');

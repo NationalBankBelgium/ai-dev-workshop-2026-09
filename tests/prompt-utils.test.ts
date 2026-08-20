@@ -4,6 +4,7 @@ import {
   advanceDeckOffset,
   buildAnglePrompt,
   buildFeaturePrompt,
+  buildStarterPrompt,
   filterIdeas,
   pickRandomIdea,
   visibleDeckItems,
@@ -50,5 +51,13 @@ describe('prompt and deck helpers', () => {
     expect(anglePrompt).toContain(angle.prompt);
     expect(anglePrompt).toContain('already built and working');
     expect(anglePrompt).toContain('single HTML file');
+  });
+
+  it('removes source wrapper quotation marks from starter prompts', () => {
+    const starterPrompt = buildStarterPrompt(idea);
+
+    expect(starterPrompt).not.toMatch(/^["“]/u);
+    expect(starterPrompt).not.toMatch(/["”]$/u);
+    expect(starterPrompt).toContain('Create');
   });
 });
