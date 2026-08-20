@@ -197,10 +197,12 @@ export class WorkshopApp {
               <li>Make it evolve, be creative, have fun with it!</li>
             </ol>
           </section>
-          <div class="qr-url-block"><span class="eyebrow">WORKSHOP URL</span><a href="${workshopUrl}" target="_blank" rel="noreferrer">${workshopUrl}</a></div>
           <a class="primary-button" href="#main-content">Back to workshop <span aria-hidden="true">→</span></a>
         </div>
-        <div class="qr-card" role="img" aria-label="QR code linking to the AI development workshop">${qrCodeSvg}</div>
+        <div class="qr-side">
+          <div class="qr-card" role="img" aria-label="QR code linking to the AI development workshop">${qrCodeSvg}</div>
+          <div class="qr-url-block"><span class="eyebrow">WORKSHOP URL</span><a href="${workshopUrl}" target="_blank" rel="noreferrer">${workshopUrl}</a></div>
+        </div>
       </section>
     `;
   }

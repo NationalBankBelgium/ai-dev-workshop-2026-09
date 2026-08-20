@@ -383,7 +383,7 @@ a {
 
 .qr-card {
   display: grid;
-  width: min(100%, 510px);
+  width: 100%;
   aspect-ratio: 1;
   padding: 24px;
   place-items: center;
@@ -396,6 +396,19 @@ a {
   display: block;
   width: 100%;
   height: auto;
+}
+
+.qr-side {
+  display: flex;
+  width: min(100%, 510px);
+  flex-direction: column;
+  gap: 18px;
+}
+
+.qr-side .qr-url-block {
+  width: 100%;
+  max-width: none;
+  margin: 0;
 }
 
 .step-panel {
@@ -1292,7 +1305,7 @@ input:focus-visible {
     gap: 32px;
   }
 
-  .qr-card {
+  .qr-side {
     width: min(100%, 430px);
   }
 

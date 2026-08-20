@@ -43,6 +43,13 @@ test('opens a scan-ready QR display view', async ({ page }) => {
   await expect(page.getByText(/Open the folder you've created with Visual Studio Code/i)).toBeVisible();
   await expect(page.getByText(/Refresh the page after each round to check the results/i)).toBeVisible();
   await expect(page.getByText('https://nationalbankbelgium.github.io/ai-dev-workshop-2026-09/')).toBeVisible();
+  const qrBox = await page.locator('.qr-card').boundingBox();
+  const urlBox = await page.locator('.qr-side .qr-url-block').boundingBox();
+  expect(qrBox).not.toBeNull();
+  expect(urlBox).not.toBeNull();
+  if (qrBox && urlBox) {
+    expect(urlBox.y).toBeGreaterThan(qrBox.y + qrBox.height);
+  }
   await expect(page.locator('.header-back')).toHaveText(/Back to workshop/i);
 
   await page.getByRole('button', { name: /Reset workshop/i }).click();
