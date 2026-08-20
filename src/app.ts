@@ -278,9 +278,10 @@ export class WorkshopApp {
             </section>
             <section class="facilitator-timer" aria-labelledby="timer-title">
               <div class="facilitator-timer-copy"><span class="eyebrow">ROUND ${String(this.facilitatorRoundIndex + 1).padStart(2, '0')}</span><h2 id="timer-title">${escapeHtml(round.title)}</h2><p>${escapeHtml(round.instruction)}</p></div>
-              <div class="facilitator-clock" role="timer" aria-live="polite" aria-label="${timerLabel} remaining">${timerLabel}</div>
+              <div class="facilitator-clock" data-facilitator-timer role="timer" aria-live="polite" aria-label="${timerLabel} remaining">${timerLabel}</div>
               <div class="facilitator-controls">
-                ${isRunning ? '<button type="button" class="secondary-button" data-action="facilitator-pause">Pause timer</button>' : `<button type="button" class="primary-button" data-action="facilitator-start">${this.facilitatorRemainingSeconds === 0 ? 'Start again' : 'Start timer'} <span aria-hidden="true">▶</span></button>`}
+                <button type="button" class="primary-button" data-action="facilitator-start" data-facilitator-start${isRunning ? ' hidden' : ''}><span data-facilitator-start-label>${this.facilitatorRemainingSeconds === 0 ? 'Start again' : 'Start timer'}</span> <span aria-hidden="true">▶</span></button>
+                <button type="button" class="secondary-button" data-action="facilitator-pause" data-facilitator-pause${isRunning ? '' : ' hidden'}>Pause timer</button>
                 <button type="button" class="text-button" data-action="facilitator-reset-timer">Reset timer</button>
               </div>
             </section>
@@ -740,19 +741,21 @@ export class WorkshopApp {
       this.facilitatorRemainingSeconds = round.minutes * 60;
     }
     this.facilitatorTimerId = window.setInterval(() => this.tickFacilitatorTimer(), 1000);
-    this.render({ selector: '[data-action="facilitator-pause"]' });
+    this.updateFacilitatorTimerDom();
+    this.root.querySelector<HTMLButtonElement>('[data-facilitator-pause]')?.focus();
   }
 
   private pauseFacilitatorTimer(): void {
     this.stopFacilitatorTimer();
-    this.render({ selector: '[data-action="facilitator-start"]' });
+    this.updateFacilitatorTimerDom();
+    this.root.querySelector<HTMLButtonElement>('[data-facilitator-start]')?.focus();
   }
 
   private resetFacilitatorTimer(): void {
     this.stopFacilitatorTimer();
     const round = facilitatorRounds[this.facilitatorRoundIndex] ?? facilitatorRounds[0];
     this.facilitatorRemainingSeconds = round.minutes * 60;
-    this.render({ selector: '[data-action="facilitator-reset-timer"]' });
+    this.updateFacilitatorTimerDom();
   }
 
   private tickFacilitatorTimer(): void {
@@ -762,12 +765,31 @@ export class WorkshopApp {
     if (this.facilitatorRemainingSeconds <= 1) {
       this.facilitatorRemainingSeconds = 0;
       this.stopFacilitatorTimer();
-      this.render();
+      this.updateFacilitatorTimerDom();
       this.setStatus('Round complete. Move to the next step when ready.');
       return;
     }
     this.facilitatorRemainingSeconds -= 1;
-    this.render();
+    this.updateFacilitatorTimerDom();
+  }
+
+  private updateFacilitatorTimerDom(): void {
+    const timer = this.root.querySelector<HTMLElement>('[data-facilitator-timer]');
+    const startButton = this.root.querySelector<HTMLButtonElement>('[data-facilitator-start]');
+    const pauseButton = this.root.querySelector<HTMLButtonElement>('[data-facilitator-pause]');
+    const startLabel = this.root.querySelector<HTMLElement>('[data-facilitator-start-label]');
+    if (!timer || !startButton || !pauseButton || !startLabel) {
+      return;
+    }
+
+    const timerLabel = formatFacilitatorTime(this.facilitatorRemainingSeconds);
+    timer.textContent = timerLabel;
+    timer.setAttribute('aria-label', `${timerLabel} remaining`);
+
+    const isRunning = this.facilitatorTimerId !== undefined;
+    startButton.hidden = isRunning;
+    pauseButton.hidden = !isRunning;
+    startLabel.textContent = this.facilitatorRemainingSeconds === 0 ? 'Start again' : 'Start timer';
   }
 
   private stopFacilitatorTimer(): void {

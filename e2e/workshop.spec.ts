@@ -110,8 +110,12 @@ test('starts facilitator mode from the instructions page', async ({ page }) => {
 
   await page.getByRole('button', { name: /Build the first version/ }).click();
   await expect(page.getByRole('timer')).toHaveText('15:00');
+  const facilitatorPanel = await page.locator('.facilitator-panel').elementHandle();
+  expect(facilitatorPanel).not.toBeNull();
   await page.getByRole('button', { name: /Start timer/ }).click();
   await expect(page.getByRole('button', { name: /Pause timer/ })).toBeVisible();
+  await expect.poll(() => page.getByRole('timer').textContent()).not.toBe('15:00');
+  expect(await facilitatorPanel?.evaluate((element) => document.body.contains(element))).toBe(true);
   await page.getByRole('button', { name: /Pause timer/ }).click();
   await expect(page.getByRole('button', { name: /Start timer/ })).toBeVisible();
 
