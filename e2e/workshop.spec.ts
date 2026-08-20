@@ -85,6 +85,38 @@ test('rotates prompts in place, copies feedback, and restores state after reload
   await expect.poll(() => page.locator('.angle-row h3').allTextContents()).not.toEqual(anglesBeforeReload);
 });
 
+test('starts a fresh random idea when choosing or changing the idea', async ({ page }) => {
+  await page.getByRole('button', { name: /Choose an app idea/ }).click();
+  const firstTitle = await page.locator('.proposed-idea h2').textContent();
+  expect(firstTitle).toBeTruthy();
+
+  await page.getByRole('button', { name: /Use this idea/ }).click();
+  await page.getByRole('button', { name: /Show different ideas/ }).click();
+  await page.getByRole('button', { name: /Change idea/ }).click();
+
+  await expect(page.getByRole('heading', { name: /Find a spark/i })).toBeVisible();
+  const secondTitle = await page.locator('.proposed-idea h2').textContent();
+  expect(secondTitle).toBeTruthy();
+  expect(secondTitle).not.toBe(firstTitle);
+
+  const persistedState = await page.evaluate(() => {
+    const rawState = window.localStorage.getItem('do-all-learning:workshop-state:v1');
+    return rawState ? JSON.parse(rawState) as { step: string; selectedIdeaId: string | null; secondActOffset: number } : null;
+  });
+  expect(persistedState).toMatchObject({
+    step: 'choose',
+    secondActOffset: 0,
+  });
+  expect(persistedState?.selectedIdeaId).toBeTruthy();
+
+  await page.getByRole('button', { name: /Use this idea/ }).click();
+  await page.getByRole('button', { name: /Choose an app/ }).click();
+  await expect(page.getByRole('heading', { name: /Find a spark/i })).toBeVisible();
+  const thirdTitle = await page.locator('.proposed-idea h2').textContent();
+  expect(thirdTitle).toBeTruthy();
+  expect(thirdTitle).not.toBe(secondTitle);
+});
+
 test('reset clears the session and returns to the first step', async ({ page }) => {
   await page.getByRole('button', { name: /Choose an app idea/ }).click();
   await page.getByRole('button', { name: /Use this idea/ }).click();

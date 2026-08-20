@@ -302,7 +302,7 @@ export class WorkshopApp {
     const idea = this.selectedIdea;
     if (!idea) {
       return `
-        <section class="step-panel error-panel" aria-labelledby="error-title"><span class="eyebrow">CHOOSE AN APP FIRST</span><h1 id="error-title">Your idea is waiting.</h1><p>The saved selection is no longer available. Return to the collection and choose a new starting point.</p><button type="button" class="primary-button" data-action="step" data-step="choose">Back to app ideas <span aria-hidden="true">→</span></button></section>
+        <section class="step-panel error-panel" aria-labelledby="error-title"><span class="eyebrow">CHOOSE AN APP FIRST</span><h1 id="error-title">Your idea is waiting.</h1><p>The saved selection is no longer available. Return to the collection and choose a new starting point.</p><button type="button" class="primary-button" data-action="change-idea">Back to app ideas <span aria-hidden="true">→</span></button></section>
       `;
     }
 
@@ -316,7 +316,7 @@ export class WorkshopApp {
 
     return `
       <section class="step-panel extend-panel" aria-labelledby="extend-title">
-        <div class="selected-app-header"><div><span class="eyebrow">STEP 3 · MAKE IT YOURS · IDEA #${escapeHtml(idea.id)}</span><h1 id="extend-title">${escapeHtml(idea.title)}</h1><p>${escapeHtml(idea.description)}</p></div><button type="button" class="outline-button" data-action="step" data-step="choose"><span aria-hidden="true">←</span> Change idea</button></div>
+        <div class="selected-app-header"><div><span class="eyebrow">STEP 3 · MAKE IT YOURS · IDEA #${escapeHtml(idea.id)}</span><h1 id="extend-title">${escapeHtml(idea.title)}</h1><p>${escapeHtml(idea.description)}</p></div><button type="button" class="outline-button" data-action="change-idea"><span aria-hidden="true">←</span> Change idea</button></div>
         <section class="starter-section" aria-labelledby="starter-title"><div class="section-heading compact-heading"><div><span class="eyebrow">YOUR FIRST MOVE</span><h2 id="starter-title">Start with a clear prompt.</h2><p>Paste this into GitHub Copilot. Then open the result and test the first version as a group.</p></div><span class="prompt-type">STARTER PROMPT</span></div><div class="starter-card"><pre>${escapeHtml(buildStarterPrompt(idea))}</pre><button type="button" class="copy-button copy-button-primary" data-copy-starter><span aria-hidden="true">▣</span> Copy starter prompt</button></div></section>
         <div class="prompt-decks">
           <section class="deck-section second-act-section" aria-labelledby="second-act-title"><div class="deck-heading"><div><span class="eyebrow">BUILD ON IT</span><h2 id="second-act-title">Give your idea a second act.</h2><p>When the first version works, choose a focused next feature. Each card is ready to copy as a follow-up prompt.</p></div><button type="button" class="secondary-button" data-action="rotate-feature"><span aria-hidden="true">↻</span> Show different ideas</button></div><div class="deck-meta"><span>${this.showAllFeatures(idea) ? 'All 10 ideas shown' : `Showing ${featureEntries.length} of ${idea.additionalFeatures.length}`}</span><button type="button" class="text-button" data-action="toggle-features">${this.showAllFeatures(idea) ? 'Show a focused set' : 'See all 10'} <span aria-hidden="true">${this.showAllFeatures(idea) ? '↑' : '↓'}</span></button></div><div class="feature-grid">${featureEntries.map((entry, index) => this.renderFeatureCard(entry, index)).join('')}</div></section>
@@ -414,6 +414,9 @@ export class WorkshopApp {
       case 'continue-extend':
         this.goToExtendStep();
         break;
+      case 'change-idea':
+        this.startNewIdeaSelection();
+        break;
       case 'surprise':
         this.chooseRandomIdea();
         break;
@@ -444,11 +447,23 @@ export class WorkshopApp {
   };
 
   private goToChooseStep(): void {
-    const selectedIdea = this.selectedIdea ?? pickRandomIdea(config.ideas, null);
+    this.startNewIdeaSelection();
+  }
+
+  private startNewIdeaSelection(): void {
+    const selectedIdea = pickRandomIdea(config.ideas, this.state.selectedIdeaId);
+    if (!selectedIdea) {
+      return;
+    }
+
+    this.state = resetPersistedState(this.storage);
+    this.searchQuery = '';
+    this.showAllIdeas = false;
+    this.showAllFeaturesForIdeaId = null;
     this.updateState({
       ...this.state,
       step: 'choose',
-      selectedIdeaId: selectedIdea?.id ?? null,
+      selectedIdeaId: selectedIdea.id,
       secondActOffset: 0,
       angleOffset: createAngleSeed(),
     });
@@ -462,6 +477,10 @@ export class WorkshopApp {
   }
 
   private goToStep(step: WorkshopStep | undefined): void {
+    if (step === 'choose' && this.state.step === 'extend') {
+      this.startNewIdeaSelection();
+      return;
+    }
     if (!step || !this.canNavigateTo(step)) {
       return;
     }
