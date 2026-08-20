@@ -599,17 +599,6 @@ a {
   background: #d9e7f1;
 }
 
-.facilitator-timer .secondary-button {
-  color: var(--white);
-  border-color: #6e91ae;
-  background: transparent;
-}
-
-.facilitator-timer .secondary-button:hover {
-  border-color: var(--white);
-  background: #17446d;
-}
-
 .facilitator-timer .text-button {
   color: #d9e7f1;
 }

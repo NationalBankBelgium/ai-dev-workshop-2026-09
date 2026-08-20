@@ -99,6 +99,13 @@ test('opens a scan-ready QR display view', async ({ page }) => {
 });
 
 test('starts facilitator mode from the instructions page', async ({ page }) => {
+  const consoleIssues: string[] = [];
+  page.on('console', (message) => {
+    if (message.type() === 'error' || message.type() === 'warning') {
+      consoleIssues.push(`${message.type()}: ${message.text()}`);
+    }
+  });
+
   await page.getByRole('link', { name: 'Instructions' }).click();
   await page.getByRole('link', { name: /Start facilitator mode/i }).click();
 
@@ -111,19 +118,36 @@ test('starts facilitator mode from the instructions page', async ({ page }) => {
   await page.getByRole('button', { name: /Build the first version/ }).click();
   await expect(page.getByRole('timer')).toHaveText('15:00');
   const facilitatorPanel = await page.locator('.facilitator-panel').elementHandle();
+  const timerToggle = page.locator(
+    '.facilitator-controls button:not([data-action="facilitator-reset-timer"])',
+  );
   expect(facilitatorPanel).not.toBeNull();
-  await page.getByRole('button', { name: /Start timer/ }).click();
-  await expect(page.getByRole('button', { name: /Pause timer/ })).toBeVisible();
+  await expect(timerToggle).toHaveCount(1);
+  await expect(timerToggle).toHaveText(/Start timer/);
+  const timerToggleElement = await timerToggle.elementHandle();
+  expect(timerToggleElement).not.toBeNull();
+
+  await timerToggle.click();
+  await expect(timerToggle).toHaveText(/Pause timer/);
+  await expect(timerToggle).toBeFocused();
   await expect.poll(() => page.getByRole('timer').textContent()).not.toBe('15:00');
   expect(await facilitatorPanel?.evaluate((element) => document.body.contains(element))).toBe(true);
-  await page.getByRole('button', { name: /Pause timer/ }).click();
-  await expect(page.getByRole('button', { name: /Start timer/ })).toBeVisible();
+  expect(await timerToggleElement?.evaluate((element) => document.body.contains(element))).toBe(true);
+
+  await timerToggle.click();
+  await expect(timerToggle).toHaveText(/Resume timer/);
+  await expect(timerToggle).toBeFocused();
+  await timerToggle.click();
+  await expect(timerToggle).toHaveText(/Pause timer/);
+  await timerToggle.click();
+  await expect(timerToggle).toHaveText(/Resume timer/);
 
   await page.getByRole('button', { name: /Reset timer/ }).click();
   await expect(page.getByRole('timer')).toHaveText('15:00');
   await page.getByRole('link', { name: /Back to instructions/ }).click();
   await expect(page).toHaveURL(/#qr-code$/);
   await expect(page.getByRole('heading', { name: /Scan to start/i })).toBeVisible();
+  expect(consoleIssues).toEqual([]);
 });
 
 test('rotates prompts in place, copies feedback, and restores state after reload', async ({ page }) => {
