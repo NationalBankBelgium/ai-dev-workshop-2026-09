@@ -1,6 +1,13 @@
 import { expect, test } from '@playwright/test';
 
 test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    try {
+      Object.defineProperty(Navigator.prototype, 'share', { configurable: true, value: undefined });
+    } catch {
+      // The browser may not expose navigator.share at all.
+    }
+  });
   await page.goto('/');
   await page.evaluate(() => window.localStorage.clear());
   await page.reload();
@@ -25,11 +32,29 @@ test('guides a group from the introduction to a selected idea', async ({ page })
 
   const selectedTitle = await page.locator('.proposed-idea h2').textContent();
   expect(selectedTitle).toBeTruthy();
+  const selectedUrl = new URL(page.url());
+  expect(selectedUrl.searchParams.get('idea')).toMatch(/^\d{3}$/);
+  await page.getByRole('button', { name: /Share this idea/ }).click();
+  await expect(page.getByRole('status')).toContainText(/Idea link (copied to the clipboard|shared)/);
   await page.getByRole('button', { name: /Use this idea/ }).click();
   await expect(page.getByRole('heading', { name: selectedTitle ?? '' })).toBeVisible();
   await expect(page.getByRole('heading', { name: /Start with a clear prompt/i })).toBeVisible();
   await expect(page.locator('.feature-card')).toHaveCount(4);
   await expect(page.locator('.angle-row')).toHaveCount(10);
+});
+
+test('opens a shared idea link directly on step two', async ({ page }) => {
+  await page.getByRole('button', { name: /Choose an app idea/ }).click();
+  const sharedTitle = await page.locator('.proposed-idea h2').textContent();
+  const sharedUrl = page.url();
+
+  await page.evaluate(() => window.localStorage.clear());
+  await page.goto(sharedUrl);
+
+  await expect(page.getByRole('heading', { name: /Find a spark/i })).toBeVisible();
+  await expect(page.locator('.proposed-idea h2')).toHaveText(sharedTitle ?? '');
+  await expect(page.locator('.prompt-preview')).toHaveCount(0);
+  await expect(page).toHaveURL(/\?idea=\d{3}$/);
 });
 
 test('opens a scan-ready QR display view', async ({ page }) => {

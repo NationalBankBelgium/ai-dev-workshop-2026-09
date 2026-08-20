@@ -29,6 +29,7 @@ const stepLabels: Record<WorkshopStep, string> = {
 
 const workshopUrl = 'https://nationalbankbelgium.github.io/ai-dev-workshop-2026-09/';
 const repositoryUrl = 'https://github.com/NationalBankBelgium/ai-dev-workshop-2026-09';
+const ideaQueryParameter = 'idea';
 
 function createAngleSeed(): number {
   return Math.floor(Math.random() * 0xffffffff) || 1;
@@ -70,7 +71,17 @@ export class WorkshopApp {
     this.root = root;
     this.storage = getBrowserStorage();
     this.ideaIds = new Set(config.ideas.map((idea) => idea.id));
-    this.state = { ...readPersistedState(this.storage, this.ideaIds), angleOffset: createAngleSeed() };
+    const linkedIdea = this.ideaFromUrl();
+    const persistedState = readPersistedState(this.storage, this.ideaIds);
+    const navigationEntry = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+    const isPageReload = navigationEntry?.type === 'reload';
+    const shouldOpenLinkedIdea = linkedIdea !== null && !isPageReload;
+    this.state = shouldOpenLinkedIdea
+      ? { ...persistedState, step: 'choose', selectedIdeaId: linkedIdea.id, secondActOffset: 0, angleOffset: createAngleSeed() }
+      : { ...persistedState, angleOffset: createAngleSeed() };
+    if (shouldOpenLinkedIdea) {
+      savePersistedState(this.storage, this.state);
+    }
     this.root.addEventListener('click', this.handleClick);
     this.root.addEventListener('input', this.handleInput);
     window.addEventListener('hashchange', this.handleHashChange);
@@ -104,6 +115,7 @@ export class WorkshopApp {
   }
 
   private render(focusRequest?: FocusRequest): void {
+    this.syncIdeaUrl();
     const content = this.isQrView() ? this.renderQrView() : this.renderStep();
     this.root.innerHTML = `
       <div class="app-shell">
@@ -280,7 +292,7 @@ export class WorkshopApp {
     return `
       <article class="proposed-idea" aria-labelledby="proposed-idea-title">
         <div class="proposed-topline"><span class="eyebrow">PROPOSED FOR YOUR GROUP</span><span class="idea-id">#${escapeHtml(idea.id)}</span></div>
-        <div class="proposed-content"><div><h2 id="proposed-idea-title">${escapeHtml(idea.title)}</h2><p>${escapeHtml(idea.description)}</p></div><div class="proposed-actions"><button type="button" class="secondary-button" data-action="surprise"><span aria-hidden="true">↻</span> Surprise me</button><button type="button" class="primary-button small-button" data-action="continue-extend">Use this idea <span aria-hidden="true">→</span></button></div></div>
+        <div class="proposed-content"><div><h2 id="proposed-idea-title">${escapeHtml(idea.title)}</h2><p>${escapeHtml(idea.description)}</p></div><div class="proposed-actions"><button type="button" class="secondary-button" data-action="share-idea"><span aria-hidden="true">↗</span> Share this idea</button><button type="button" class="secondary-button" data-action="surprise"><span aria-hidden="true">↻</span> Surprise me</button><button type="button" class="primary-button small-button" data-action="continue-extend">Use this idea <span aria-hidden="true">→</span></button></div></div>
         <div class="idea-summary"><div><span>First version</span><ul>${idea.features.slice(0, 3).map((feature) => `<li>${escapeHtml(feature)}</li>`).join('')}</ul></div><div><span>Keep in mind</span><p>${escapeHtml(idea.constraints)}</p></div></div>
       </article>
     `;
@@ -414,6 +426,9 @@ export class WorkshopApp {
       case 'continue-extend':
         this.goToExtendStep();
         break;
+      case 'share-idea':
+        void this.shareIdea(actionButton);
+        break;
       case 'change-idea':
         this.startNewIdeaSelection();
         break;
@@ -448,6 +463,63 @@ export class WorkshopApp {
 
   private goToChooseStep(): void {
     this.startNewIdeaSelection();
+  }
+
+  private ideaFromUrl(): AppIdea | null {
+    const ideaId = new URLSearchParams(window.location.search).get(ideaQueryParameter);
+    return ideaId ? config.ideas.find((idea) => idea.id === ideaId) ?? null : null;
+  }
+
+  private syncIdeaUrl(): void {
+    const url = new URL(window.location.href);
+    const idea = this.selectedIdea;
+    if (idea) {
+      url.searchParams.set(ideaQueryParameter, idea.id);
+    } else {
+      url.searchParams.delete(ideaQueryParameter);
+    }
+    if (!this.isQrView() && url.hash === '#main-content') {
+      url.hash = '';
+    }
+
+    const nextLocation = `${url.pathname}${url.search}${url.hash}`;
+    const currentLocation = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    if (nextLocation !== currentLocation) {
+      window.history.replaceState(null, '', nextLocation);
+    }
+  }
+
+  private getIdeaShareUrl(idea: AppIdea): string {
+    const url = new URL(window.location.href);
+    url.search = '';
+    url.hash = '';
+    url.searchParams.set(ideaQueryParameter, idea.id);
+    return url.toString();
+  }
+
+  private async shareIdea(button: HTMLElement): Promise<void> {
+    const idea = this.selectedIdea;
+    if (!idea) {
+      return;
+    }
+
+    const url = this.getIdeaShareUrl(idea);
+    if (typeof navigator.share === 'function') {
+      try {
+        await navigator.share({
+          title: `${idea.title} · AI development workshop`,
+          text: `Try this app idea with your group: ${idea.title}`,
+          url,
+        });
+        this.setStatus('Idea link shared.');
+        return;
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          return;
+        }
+      }
+    }
+    await this.copyPrompt(url, 'Idea link', button);
   }
 
   private startNewIdeaSelection(): void {
