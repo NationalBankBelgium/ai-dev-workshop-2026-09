@@ -2,6 +2,13 @@ import logoUrl from './assets/nbb-logo-en.svg';
 import qrCodeSvg from './assets/workshop-url-qr.svg?raw';
 import { config } from './data';
 import {
+  getIdeaCategoryIds,
+  getIdeaCategoryLabel,
+  IDEA_CATEGORIES,
+  isIdeaCategoryId,
+  type IdeaCategoryId,
+} from './idea-categories';
+import {
   advanceDeckOffset,
   buildAnglePrompt,
   buildFeaturePrompt,
@@ -66,6 +73,7 @@ export class WorkshopApp {
   private state: WorkshopState;
   private searchQuery = '';
   private showAllIdeas = false;
+  private selectedCategory: IdeaCategoryId | null = null;
 
   public constructor(root: HTMLElement) {
     this.root = root;
@@ -264,11 +272,16 @@ export class WorkshopApp {
 
   private renderChooseStep(): string {
     const selected = this.selectedIdea;
-    const filteredIdeas = filterIdeas(config.ideas, this.searchQuery);
-    const visibleIdeas = this.showAllIdeas || this.searchQuery.trim()
+    const activeCategory = this.selectedCategory;
+    const categoryIdeas = activeCategory === null
+      ? config.ideas
+      : config.ideas.filter((idea) => getIdeaCategoryIds(idea).includes(activeCategory));
+    const filteredIdeas = filterIdeas(categoryIdeas, this.searchQuery);
+    const hasActiveFilters = Boolean(this.searchQuery.trim()) || activeCategory !== null;
+    const visibleIdeas = this.showAllIdeas || hasActiveFilters
       ? filteredIdeas
       : filteredIdeas.slice(0, 12);
-    const hasMoreIdeas = !this.searchQuery.trim() && filteredIdeas.length > visibleIdeas.length;
+    const hasMoreIdeas = !hasActiveFilters && filteredIdeas.length > visibleIdeas.length;
 
     return `
       <section class="step-panel choose-panel" aria-labelledby="choose-title">
@@ -278,7 +291,8 @@ export class WorkshopApp {
         </div>
         ${selected ? this.renderProposedIdea(selected) : this.renderNoIdeaState()}
         <div class="browse-section">
-          <div class="browse-heading"><div><h2>Browse the collection</h2><p>Search by title or by what the first version should do.</p></div><label class="search-box"><span class="search-icon" aria-hidden="true">⌕</span><span class="sr-only">Search app ideas</span><input type="search" data-search value="${escapeHtml(this.searchQuery)}" placeholder="Try “music”, “map”, or “timer”" autocomplete="off" /></label></div>
+          <div class="browse-heading"><div><h2>Browse the collection</h2><p>Search by title or by what the first version should do, then filter by topic.</p></div><label class="search-box"><span class="search-icon" aria-hidden="true">⌕</span><span class="sr-only">Search app ideas</span><input type="search" data-search value="${escapeHtml(this.searchQuery)}" placeholder="Try “music”, “map”, or “timer”" autocomplete="off" /></label></div>
+          ${this.renderCategoryFilters()}
           <div id="idea-results" class="idea-results" aria-live="polite">
             ${visibleIdeas.length > 0 ? visibleIdeas.map((idea) => this.renderIdeaResult(idea, selected?.id === idea.id)).join('') : '<div class="empty-state"><strong>No ideas found.</strong><span>Try a broader search, or clear the search box.</span></div>'}
           </div>
@@ -286,6 +300,21 @@ export class WorkshopApp {
         </div>
       </section>
     `;
+  }
+
+  private renderCategoryFilters(): string {
+    const allIsActive = this.selectedCategory === null;
+    const allButton = `<button type="button" class="category-filter-button${allIsActive ? ' is-active' : ''}" data-category-filter="all" aria-pressed="${allIsActive ? 'true' : 'false'}">All ideas <span>${config.ideas.length}</span></button>`;
+    const categoryButtons = IDEA_CATEGORIES.map((category) => {
+      const isActive = this.selectedCategory === category.id;
+      const count = config.ideas.filter((idea) => getIdeaCategoryIds(idea).includes(category.id)).length;
+      if (count === 0) {
+        return '';
+      }
+      return `<button type="button" class="category-filter-button${isActive ? ' is-active' : ''}" data-category-filter="${category.id}" aria-pressed="${isActive ? 'true' : 'false'}">${escapeHtml(getIdeaCategoryLabel(category.id))} <span>${count}</span></button>`;
+    }).join('');
+
+    return `<div class="category-filter" role="group" aria-label="Filter app ideas by topic"><span class="category-filter-label">FILTER BY TOPIC</span>${allButton}${categoryButtons}</div>`;
   }
 
   private renderProposedIdea(idea: AppIdea): string {
@@ -380,6 +409,15 @@ export class WorkshopApp {
         this.showAllFeaturesForIdeaId = null;
         this.updateState({ ...this.state, selectedIdeaId: idea.id, secondActOffset: 0, angleOffset: createAngleSeed() });
       }
+      return;
+    }
+
+    const categoryButton = target.closest<HTMLElement>('[data-category-filter]');
+    if (categoryButton) {
+      const categoryId = categoryButton.dataset.categoryFilter;
+      this.selectedCategory = categoryId && categoryId !== 'all' && isIdeaCategoryId(categoryId) ? categoryId : null;
+      this.showAllIdeas = false;
+      this.render({ selector: `[data-category-filter="${categoryId ?? 'all'}"]` });
       return;
     }
 
@@ -531,6 +569,7 @@ export class WorkshopApp {
     this.state = resetPersistedState(this.storage);
     this.searchQuery = '';
     this.showAllIdeas = false;
+    this.selectedCategory = null;
     this.showAllFeaturesForIdeaId = null;
     this.updateState({
       ...this.state,
@@ -606,6 +645,7 @@ export class WorkshopApp {
     this.state = resetPersistedState(this.storage);
     this.searchQuery = '';
     this.showAllIdeas = false;
+    this.selectedCategory = null;
     this.showAllFeaturesForIdeaId = null;
     this.render();
     this.setStatus('Workshop reset. You are back at the start.');

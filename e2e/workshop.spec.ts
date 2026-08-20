@@ -57,6 +57,21 @@ test('opens a shared idea link directly on step two', async ({ page }) => {
   await expect(page).toHaveURL(/\?idea=\d{3}$/);
 });
 
+test('filters the idea collection by topic', async ({ page }) => {
+  await page.getByRole('button', { name: /Choose an app idea/ }).click();
+  await expect(page.getByRole('button', { name: /All ideas/ })).toHaveAttribute('aria-pressed', 'true');
+
+  await page.getByRole('button', { name: /Food & drink/ }).click();
+  await expect(page.getByRole('button', { name: /Food & drink/ })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.idea-result')).not.toHaveCount(0);
+  await expect(page.locator('.idea-result strong', { hasText: 'Mocktail Mixer' })).toHaveCount(1);
+  await expect(page.locator('.idea-result strong', { hasText: 'Decision Spinner' })).toHaveCount(0);
+
+  await page.getByRole('button', { name: /All ideas/ }).click();
+  await expect(page.getByRole('button', { name: /All ideas/ })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.idea-result strong', { hasText: 'Decision Spinner' })).toHaveCount(1);
+});
+
 test('opens a scan-ready QR display view', async ({ page }) => {
   await page.getByRole('link', { name: /Display QR \+ instructions/i }).click();
 
