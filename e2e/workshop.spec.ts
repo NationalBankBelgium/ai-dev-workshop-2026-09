@@ -21,7 +21,7 @@ test('guides a group from the introduction to a selected idea', async ({ page })
   await expect(page.locator('.stepper')).toHaveCSS('background-color', 'rgb(0, 45, 90)');
   await expect(page.locator('.brand-logo')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
   await expect(page.locator('body')).toHaveCSS('font-family', /Barlow/);
-  await expect(page.getByRole('link', { name: /Display QR \+ instructions/i })).toHaveAttribute('href', '#qr-code');
+  await expect(page.getByRole('link', { name: 'Instructions' })).toHaveAttribute('href', '#qr-code');
   await expect(page.getByRole('link', { name: 'Source Code' })).toHaveAttribute('href', 'https://github.com/NationalBankBelgium/ai-dev-workshop-2026-09');
 
   await page.getByRole('button', { name: /Choose an app idea/ }).click();
@@ -73,7 +73,7 @@ test('filters the idea collection by topic', async ({ page }) => {
 });
 
 test('opens a scan-ready QR display view', async ({ page }) => {
-  await page.getByRole('link', { name: /Display QR \+ instructions/i }).click();
+  await page.getByRole('link', { name: 'Instructions' }).click();
 
   await expect(page).toHaveURL(/#qr-code$/);
   await expect(page.getByRole('heading', { name: /Scan to start/i })).toBeVisible();
@@ -83,6 +83,7 @@ test('opens a scan-ready QR display view', async ({ page }) => {
   await expect(page.getByText(/Open the folder you've created with Visual Studio Code/i)).toBeVisible();
   await expect(page.getByText(/Refresh the page after each round to check the results/i)).toBeVisible();
   await expect(page.getByText('https://nationalbankbelgium.github.io/ai-dev-workshop-2026-09/')).toBeVisible();
+  await expect(page.getByRole('link', { name: /Start facilitator mode/i })).toHaveAttribute('href', '#facilitator');
   const qrBox = await page.locator('.qr-card').boundingBox();
   const urlBox = await page.locator('.qr-side .qr-url-block').boundingBox();
   expect(qrBox).not.toBeNull();
@@ -95,6 +96,30 @@ test('opens a scan-ready QR display view', async ({ page }) => {
   await page.getByRole('button', { name: /Reset workshop/i }).click();
   await expect(page).not.toHaveURL(/#qr-code$/);
   await expect(page.getByRole('heading', { name: /Build a small idea/i })).toBeVisible();
+});
+
+test('starts facilitator mode from the instructions page', async ({ page }) => {
+  await page.getByRole('link', { name: 'Instructions' }).click();
+  await page.getByRole('link', { name: /Start facilitator mode/i }).click();
+
+  await expect(page).toHaveURL(/#facilitator$/);
+  await expect(page.getByRole('heading', { name: /Run the room/i })).toBeVisible();
+  await expect(page.getByRole('timer')).toHaveText('05:00');
+  await expect(page.getByRole('button', { name: /Choose an idea/ })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.facilitator-round')).toHaveCount(4);
+
+  await page.getByRole('button', { name: /Build the first version/ }).click();
+  await expect(page.getByRole('timer')).toHaveText('15:00');
+  await page.getByRole('button', { name: /Start timer/ }).click();
+  await expect(page.getByRole('button', { name: /Pause timer/ })).toBeVisible();
+  await page.getByRole('button', { name: /Pause timer/ }).click();
+  await expect(page.getByRole('button', { name: /Start timer/ })).toBeVisible();
+
+  await page.getByRole('button', { name: /Reset timer/ }).click();
+  await expect(page.getByRole('timer')).toHaveText('15:00');
+  await page.getByRole('link', { name: /Back to instructions/ }).click();
+  await expect(page).toHaveURL(/#qr-code$/);
+  await expect(page.getByRole('heading', { name: /Scan to start/i })).toBeVisible();
 });
 
 test('rotates prompts in place, copies feedback, and restores state after reload', async ({ page }) => {

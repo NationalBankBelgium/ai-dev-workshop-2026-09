@@ -37,9 +37,21 @@ const stepLabels: Record<WorkshopStep, string> = {
 const workshopUrl = 'https://nationalbankbelgium.github.io/ai-dev-workshop-2026-09/';
 const repositoryUrl = 'https://github.com/NationalBankBelgium/ai-dev-workshop-2026-09';
 const ideaQueryParameter = 'idea';
+const facilitatorRounds = [
+  { title: 'Choose an idea', minutes: 5, instruction: 'Each group chooses an app idea and opens its starter prompt.' },
+  { title: 'Build the first version', minutes: 15, instruction: 'Build a first version with GitHub Copilot, then open it and test it.' },
+  { title: 'Make it yours', minutes: 15, instruction: 'Choose a follow-up prompt, make a focused change, and test it again.' },
+  { title: 'Share back', minutes: 5, instruction: 'Prepare a short show-and-tell: what you built, what changed, and what surprised you.' },
+] as const;
 
 function createAngleSeed(): number {
   return Math.floor(Math.random() * 0xffffffff) || 1;
+}
+
+function formatFacilitatorTime(totalSeconds: number): string {
+  const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+  const seconds = (totalSeconds % 60).toString().padStart(2, '0');
+  return `${minutes}:${seconds}`;
 }
 
 interface FocusRequest {
@@ -74,6 +86,9 @@ export class WorkshopApp {
   private searchQuery = '';
   private showAllIdeas = false;
   private selectedCategory: IdeaCategoryId | null = null;
+  private facilitatorRoundIndex = 0;
+  private facilitatorRemainingSeconds = (facilitatorRounds[0]?.minutes ?? 5) * 60;
+  private facilitatorTimerId: number | undefined;
 
   public constructor(root: HTMLElement) {
     this.root = root;
@@ -124,7 +139,11 @@ export class WorkshopApp {
 
   private render(focusRequest?: FocusRequest): void {
     this.syncIdeaUrl();
-    const content = this.isQrView() ? this.renderQrView() : this.renderStep();
+    const content = this.isQrView()
+      ? this.renderQrView()
+      : this.isFacilitatorView()
+        ? this.renderFacilitatorView()
+        : this.renderStep();
     this.root.innerHTML = `
       <div class="app-shell">
         ${this.renderHeader()}
@@ -153,11 +172,19 @@ export class WorkshopApp {
     return window.location.hash === '#qr-code';
   }
 
+  private isFacilitatorView(): boolean {
+    return window.location.hash === '#facilitator';
+  }
+
   private renderHeader(): string {
     const isQrView = this.isQrView();
+    const isFacilitatorView = this.isFacilitatorView();
+    const isDisplayView = isQrView || isFacilitatorView;
     const currentStepIndex = stepOrder.indexOf(this.state.step);
     const backButton = isQrView
       ? '<a class="header-back" href="#main-content" aria-label="Back to workshop"><span aria-hidden="true">←</span><span class="action-text action-text-wide" aria-hidden="true">Back to workshop</span><span class="action-text action-text-compact" aria-hidden="true">Back</span></a>'
+      : isFacilitatorView
+        ? '<a class="header-back" href="#qr-code" aria-label="Back to instructions"><span aria-hidden="true">←</span><span class="action-text action-text-wide" aria-hidden="true">Back to instructions</span><span class="action-text action-text-compact" aria-hidden="true">Instructions</span></a>'
       : this.state.step === 'intro'
         ? ''
         : '<button type="button" class="header-back" data-action="back" aria-label="Back"><span aria-hidden="true">←</span><span class="action-text action-text-wide" aria-hidden="true">Back</span><span class="action-text action-text-compact" aria-hidden="true">Back</span></button>';
@@ -187,11 +214,11 @@ export class WorkshopApp {
           </a>
           <div class="header-actions">
             ${backButton}
-            ${isQrView ? '' : '<a class="qr-link" href="#qr-code" aria-label="Display QR + instructions"><span aria-hidden="true">▦</span><span class="action-text action-text-wide" aria-hidden="true">Display QR + instructions</span><span class="action-text action-text-compact" aria-hidden="true">QR + guide</span></a>'}
+            ${isDisplayView ? '' : '<a class="qr-link" href="#qr-code" aria-label="Instructions"><span aria-hidden="true">▦</span><span class="action-text action-text-wide" aria-hidden="true">Instructions</span><span class="action-text action-text-compact" aria-hidden="true">Instructions</span></a>'}
             <button type="button" class="reset-button" data-action="reset" aria-label="Reset workshop"><span aria-hidden="true">↺</span><span class="action-text action-text-wide" aria-hidden="true">Reset workshop</span><span class="action-text action-text-compact" aria-hidden="true">Reset</span></button>
           </div>
         </div>
-        ${isQrView ? '' : `<nav class="stepper" aria-label="Workshop progress">${steps}</nav>`}
+        ${isDisplayView ? '' : `<nav class="stepper" aria-label="Workshop progress">${steps}</nav>`}
       </header>
     `;
   }
@@ -200,7 +227,7 @@ export class WorkshopApp {
     return `
       <section id="qr-code" class="step-panel qr-panel" aria-labelledby="qr-title">
         <div class="qr-copy">
-          <span class="eyebrow">SHARE THE WORKSHOP</span>
+          <span class="eyebrow">WORKSHOP INSTRUCTIONS</span>
           <h1 id="qr-title">Scan to start.</h1>
           <p class="qr-lead">Put this page on a shared screen. Everyone can scan the code to open the workshop on their own device.</p>
           <section class="qr-instructions" aria-labelledby="approach-title">
@@ -217,11 +244,51 @@ export class WorkshopApp {
               <li>Make it evolve, be creative, have fun with it!</li>
             </ol>
           </section>
-          <a class="primary-button" href="#main-content">Back to workshop <span aria-hidden="true">→</span></a>
+          <div class="qr-actions">
+            <a class="primary-button" href="#facilitator">Start facilitator mode <span aria-hidden="true">→</span></a>
+            <a class="secondary-button" href="#main-content">Back to workshop</a>
+          </div>
         </div>
         <div class="qr-side">
           <div class="qr-card" role="img" aria-label="QR code linking to the AI development workshop">${qrCodeSvg}</div>
           <div class="qr-url-block"><span class="eyebrow">WORKSHOP URL</span><a href="${workshopUrl}" target="_blank" rel="noreferrer">${workshopUrl}</a></div>
+        </div>
+      </section>
+    `;
+  }
+
+  private renderFacilitatorView(): string {
+    const round = facilitatorRounds[this.facilitatorRoundIndex] ?? facilitatorRounds[0];
+    const isRunning = this.facilitatorTimerId !== undefined;
+    const timerLabel = formatFacilitatorTime(this.facilitatorRemainingSeconds);
+
+    return `
+      <section id="facilitator" class="step-panel facilitator-panel" aria-labelledby="facilitator-title">
+        <div class="facilitator-heading">
+          <div><span class="eyebrow">FACILITATOR MODE</span><h1 id="facilitator-title">Run the room.</h1><p>Keep this view on the shared screen. Groups use their own devices; this timer and the reminders stay on this screen.</p></div>
+          <div class="facilitator-badge"><span class="eyebrow">CURRENT ROUND</span><strong>${escapeHtml(round.title)}</strong><span>${round.minutes} minutes</span></div>
+        </div>
+        <div class="facilitator-layout">
+          <div class="facilitator-main">
+            <section class="facilitator-rounds" aria-labelledby="rounds-title">
+              <div class="facilitator-section-heading"><div><span class="eyebrow">WORKSHOP RHYTHM</span><h2 id="rounds-title">Choose a round.</h2><p>Switch the timer to the part of the workshop you are leading.</p></div></div>
+              <div class="facilitator-round-grid" role="group" aria-label="Workshop rounds">
+                ${facilitatorRounds.map((facilitatorRound, index) => `<button type="button" class="facilitator-round${index === this.facilitatorRoundIndex ? ' is-active' : ''}" data-action="facilitator-round" data-round-index="${index}" aria-pressed="${index === this.facilitatorRoundIndex ? 'true' : 'false'}"><span>ROUND ${String(index + 1).padStart(2, '0')}</span><strong>${escapeHtml(facilitatorRound.title)}</strong><small>${facilitatorRound.minutes} min</small></button>`).join('')}
+              </div>
+            </section>
+            <section class="facilitator-timer" aria-labelledby="timer-title">
+              <div class="facilitator-timer-copy"><span class="eyebrow">ROUND ${String(this.facilitatorRoundIndex + 1).padStart(2, '0')}</span><h2 id="timer-title">${escapeHtml(round.title)}</h2><p>${escapeHtml(round.instruction)}</p></div>
+              <div class="facilitator-clock" role="timer" aria-live="polite" aria-label="${timerLabel} remaining">${timerLabel}</div>
+              <div class="facilitator-controls">
+                ${isRunning ? '<button type="button" class="secondary-button" data-action="facilitator-pause">Pause timer</button>' : `<button type="button" class="primary-button" data-action="facilitator-start">${this.facilitatorRemainingSeconds === 0 ? 'Start again' : 'Start timer'} <span aria-hidden="true">▶</span></button>`}
+                <button type="button" class="text-button" data-action="facilitator-reset-timer">Reset timer</button>
+              </div>
+            </section>
+            <p class="facilitator-reminder"><strong>After every round:</strong> ask participants to refresh their page to see the latest result and keep building.</p>
+          </div>
+          <aside class="facilitator-qr" aria-labelledby="facilitator-qr-title">
+            <span class="eyebrow">PARTICIPANT LINK</span><h2 id="facilitator-qr-title">Scan to join.</h2><div class="facilitator-qr-card" role="img" aria-label="QR code linking to the AI development workshop">${qrCodeSvg}</div><a href="${workshopUrl}" target="_blank" rel="noreferrer">${workshopUrl}</a>
+          </aside>
         </div>
       </section>
     `;
@@ -392,6 +459,9 @@ export class WorkshopApp {
   };
 
   private handleHashChange = (): void => {
+    if (!this.isFacilitatorView()) {
+      this.stopFacilitatorTimer();
+    }
     this.render();
   };
 
@@ -495,6 +565,18 @@ export class WorkshopApp {
         break;
       case 'reset':
         this.reset();
+        break;
+      case 'facilitator-round':
+        this.selectFacilitatorRound(Number(actionButton.dataset.roundIndex));
+        break;
+      case 'facilitator-start':
+        this.startFacilitatorTimer();
+        break;
+      case 'facilitator-pause':
+        this.pauseFacilitatorTimer();
+        break;
+      case 'facilitator-reset-timer':
+        this.resetFacilitatorTimer();
         break;
     }
   };
@@ -638,10 +720,70 @@ export class WorkshopApp {
     );
   }
 
+  private selectFacilitatorRound(roundIndex: number): void {
+    const round = facilitatorRounds[roundIndex];
+    if (!round) {
+      return;
+    }
+    this.stopFacilitatorTimer();
+    this.facilitatorRoundIndex = roundIndex;
+    this.facilitatorRemainingSeconds = round.minutes * 60;
+    this.render({ selector: `[data-action="facilitator-round"][data-round-index="${roundIndex}"]` });
+  }
+
+  private startFacilitatorTimer(): void {
+    if (this.facilitatorTimerId !== undefined) {
+      return;
+    }
+    if (this.facilitatorRemainingSeconds === 0) {
+      const round = facilitatorRounds[this.facilitatorRoundIndex] ?? facilitatorRounds[0];
+      this.facilitatorRemainingSeconds = round.minutes * 60;
+    }
+    this.facilitatorTimerId = window.setInterval(() => this.tickFacilitatorTimer(), 1000);
+    this.render({ selector: '[data-action="facilitator-pause"]' });
+  }
+
+  private pauseFacilitatorTimer(): void {
+    this.stopFacilitatorTimer();
+    this.render({ selector: '[data-action="facilitator-start"]' });
+  }
+
+  private resetFacilitatorTimer(): void {
+    this.stopFacilitatorTimer();
+    const round = facilitatorRounds[this.facilitatorRoundIndex] ?? facilitatorRounds[0];
+    this.facilitatorRemainingSeconds = round.minutes * 60;
+    this.render({ selector: '[data-action="facilitator-reset-timer"]' });
+  }
+
+  private tickFacilitatorTimer(): void {
+    if (this.facilitatorTimerId === undefined) {
+      return;
+    }
+    if (this.facilitatorRemainingSeconds <= 1) {
+      this.facilitatorRemainingSeconds = 0;
+      this.stopFacilitatorTimer();
+      this.render();
+      this.setStatus('Round complete. Move to the next step when ready.');
+      return;
+    }
+    this.facilitatorRemainingSeconds -= 1;
+    this.render();
+  }
+
+  private stopFacilitatorTimer(): void {
+    if (this.facilitatorTimerId !== undefined) {
+      window.clearInterval(this.facilitatorTimerId);
+      this.facilitatorTimerId = undefined;
+    }
+  }
+
   private reset(): void {
-    if (this.isQrView()) {
+    if (this.isQrView() || this.isFacilitatorView()) {
       window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
     }
+    this.stopFacilitatorTimer();
+    this.facilitatorRoundIndex = 0;
+    this.facilitatorRemainingSeconds = (facilitatorRounds[0]?.minutes ?? 5) * 60;
     this.state = resetPersistedState(this.storage);
     this.searchQuery = '';
     this.showAllIdeas = false;
