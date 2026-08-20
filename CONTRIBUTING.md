@@ -4,7 +4,7 @@ Thanks for helping improve the AI development workshop app.
 
 ## Prerequisites
 
-- Node.js 22 or newer
+- Node.js 22.13 or newer supported release
 - npm
 - Chromium for Playwright end-to-end tests
 - Git with access to the HTTPS GitHub remote
