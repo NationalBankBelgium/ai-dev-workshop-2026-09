@@ -9,6 +9,7 @@ import {
   filterIdeas,
   pickRandomIdea,
   SECOND_ACT_VISIBLE_COUNT,
+  shuffleWithSeed,
   visibleDeckItems,
 } from './prompt-utils';
 import {
@@ -50,13 +51,6 @@ function getBrowserStorage(): StorageLike | undefined {
   } catch {
     return undefined;
   }
-}
-
-function indexForOffset(offset: number, length: number): number {
-  if (length === 0) {
-    return 0;
-  }
-  return ((offset % length) + length) % length;
 }
 
 export class WorkshopApp {
@@ -193,6 +187,7 @@ export class WorkshopApp {
               <li>Start a GitHub Copilot conversation.</li>
               <li>Build a first version of the application, respecting the constraints (if any).</li>
               <li>Open it and test it.</li>
+              <li>Refresh the page after each round to check the results.</li>
               <li>Make it evolve, be creative, have fun with it!</li>
             </ol>
           </section>
@@ -306,8 +301,10 @@ export class WorkshopApp {
     const featureEntries = this.showAllFeatures(idea)
       ? idea.additionalFeatures.map((feature, index) => ({ feature, index }))
       : visibleDeckItems(idea.additionalFeatures.map((feature, index) => ({ feature, index })), this.state.secondActOffset, SECOND_ACT_VISIBLE_COUNT);
-    const angleIndex = indexForOffset(this.state.angleOffset, config.interestingPrompts.length);
-    const featuredAngle = config.interestingPrompts[angleIndex] ?? config.interestingPrompts[0];
+    const angleEntries = shuffleWithSeed(
+      config.interestingPrompts.map((prompt, index) => ({ prompt, index })),
+      this.state.angleOffset,
+    );
 
     return `
       <section class="step-panel extend-panel" aria-labelledby="extend-title">
@@ -315,7 +312,7 @@ export class WorkshopApp {
         <section class="starter-section" aria-labelledby="starter-title"><div class="section-heading compact-heading"><div><span class="eyebrow">YOUR FIRST MOVE</span><h2 id="starter-title">Start with a clear prompt.</h2><p>Paste this into GitHub Copilot. Then open the result and test the first version as a group.</p></div><span class="prompt-type">STARTER PROMPT</span></div><div class="starter-card"><pre>${escapeHtml(buildStarterPrompt(idea))}</pre><button type="button" class="copy-button copy-button-primary" data-copy-starter><span aria-hidden="true">▣</span> Copy starter prompt</button></div></section>
         <div class="prompt-decks">
           <section class="deck-section second-act-section" aria-labelledby="second-act-title"><div class="deck-heading"><div><span class="eyebrow">BUILD ON IT</span><h2 id="second-act-title">Give your idea a second act.</h2><p>When the first version works, choose a focused next feature. Each card is ready to copy as a follow-up prompt.</p></div><button type="button" class="secondary-button" data-action="rotate-feature"><span aria-hidden="true">↻</span> Show different ideas</button></div><div class="deck-meta"><span>${this.showAllFeatures(idea) ? 'All 10 ideas shown' : `Showing ${featureEntries.length} of ${idea.additionalFeatures.length}`}</span><button type="button" class="text-button" data-action="toggle-features">${this.showAllFeatures(idea) ? 'Show a focused set' : 'See all 10'} <span aria-hidden="true">${this.showAllFeatures(idea) ? '↑' : '↓'}</span></button></div><div class="feature-grid">${featureEntries.map((entry, index) => this.renderFeatureCard(entry, index)).join('')}</div></section>
-          <section class="deck-section angle-section" aria-labelledby="angle-title"><div class="deck-heading"><div><span class="eyebrow">OPEN IT UP</span><h2 id="angle-title">Try a different angle.</h2><p>Use one of the workshop prompts to change the lens: make it more visual, more playful, more connected, or more robust.</p></div><button type="button" class="secondary-button" data-action="rotate-angle"><span aria-hidden="true">↻</span> Try another angle</button></div>${featuredAngle ? this.renderFeaturedAngle(featuredAngle, angleIndex, idea) : ''}<div class="angle-list-heading"><span>All 10 interesting prompts</span><span>Copy any one</span></div><div class="angle-list">${config.interestingPrompts.map((prompt, index) => this.renderAngleRow(prompt, index, index === angleIndex)).join('')}</div></section>
+          <section class="deck-section angle-section" aria-labelledby="angle-title"><div class="deck-heading"><div><span class="eyebrow">OPEN IT UP</span><h2 id="angle-title">Try a different angle.</h2><p>Shuffle all ten workshop prompts to get a fresh mix. Every option is equally available to copy.</p></div><button type="button" class="secondary-button" data-action="rotate-angle"><span aria-hidden="true">↻</span> Shuffle options</button></div><div class="angle-list-heading"><span>All 10 interesting prompts</span><span>Copy any one</span></div><div class="angle-list" aria-live="polite">${angleEntries.map(({ prompt, index }, displayIndex) => this.renderAngleRow(prompt, index, displayIndex)).join('')}</div></section>
         </div>
       </section>
     `;
@@ -331,12 +328,8 @@ export class WorkshopApp {
     return `<article class="feature-card"><span class="feature-number">${String(displayIndex + 1).padStart(2, '0')}</span><h3>${escapeHtml(entry.feature.title)}</h3><p>${escapeHtml(entry.feature.prompt)}</p><button type="button" class="copy-button" data-copy-feature="${entry.index}"><span aria-hidden="true">▣</span> Copy prompt</button></article>`;
   }
 
-  private renderFeaturedAngle(prompt: InterestingPrompt, index: number, idea: AppIdea): string {
-    return `<article class="featured-angle"><div class="featured-angle-label"><span class="angle-dot" aria-hidden="true"></span><span>FEATURED ANGLE · ${String(index + 1).padStart(2, '0')}</span></div><h3>${escapeHtml(prompt.title)}</h3><p>${escapeHtml(prompt.prompt)}</p><button type="button" class="copy-button" data-copy-angle="${index}"><span aria-hidden="true">▣</span> Copy prompt for ${escapeHtml(idea.title)}</button></article>`;
-  }
-
-  private renderAngleRow(prompt: InterestingPrompt, index: number, isFeatured: boolean): string {
-    return `<article class="angle-row${isFeatured ? ' is-featured' : ''}"><span class="angle-row-number">${String(index + 1).padStart(2, '0')}</span><div><h3>${escapeHtml(prompt.title)}</h3><p>${escapeHtml(prompt.prompt)}</p></div><button type="button" class="copy-button" data-copy-angle="${index}"><span aria-hidden="true">▣</span><span class="copy-label">Copy</span></button></article>`;
+  private renderAngleRow(prompt: InterestingPrompt, sourceIndex: number, displayIndex: number): string {
+    return `<article class="angle-row"><span class="angle-row-number">${String(displayIndex + 1).padStart(2, '0')}</span><div><h3>${escapeHtml(prompt.title)}</h3><p>${escapeHtml(prompt.prompt)}</p></div><button type="button" class="copy-button" data-copy-angle="${sourceIndex}"><span aria-hidden="true">▣</span><span class="copy-label">Copy</span></button></article>`;
   }
 
   private handleInput = (event: Event): void => {
@@ -497,8 +490,12 @@ export class WorkshopApp {
   }
 
   private rotateAngle(): void {
+    let nextSeed = Math.floor(Math.random() * 0xffffffff) || 1;
+    if (nextSeed === this.state.angleOffset) {
+      nextSeed = nextSeed === 0xffffffff ? 1 : nextSeed + 1;
+    }
     this.updateState(
-      { ...this.state, angleOffset: advanceDeckOffset(this.state.angleOffset, config.interestingPrompts.length) },
+      { ...this.state, angleOffset: nextSeed },
       { selector: '[data-action="rotate-angle"]' },
     );
   }

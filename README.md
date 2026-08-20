@@ -32,7 +32,7 @@ The production build is deliberately a single self-contained `dist/index.html`; 
 - Step 1 explains the five-person group format and the build/test/evolve loop.
 - Step 2 proposes a random idea and supports search, browsing, and changing the selection.
 - Step 3 shows the starter prompt, ten named per-idea second-act prompts, and ten general Interesting modification prompts.
-- “Show different ideas” and “Try another angle” rotate their decks without a page refresh.
+- “Show different ideas” rotates the second-act deck, while “Shuffle options” randomizes all ten angle prompts without a page refresh.
 - The current step, selected idea, and deck positions are stored in namespaced `localStorage`.
 - “Reset workshop” immediately clears that state and returns to Step 1.
 

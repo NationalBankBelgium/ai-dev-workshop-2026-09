@@ -38,8 +38,9 @@ test('opens a scan-ready QR display view', async ({ page }) => {
   await expect(page.getByRole('heading', { name: /Scan to start/i })).toBeVisible();
   await expect(page.getByRole('img', { name: /QR code linking/i })).toBeVisible();
   await expect(page.getByRole('heading', { name: /Recommended approach/i })).toBeVisible();
-  await expect(page.getByRole('listitem')).toHaveCount(8);
+  await expect(page.getByRole('listitem')).toHaveCount(9);
   await expect(page.getByText(/Open the folder you've created with Visual Studio Code/i)).toBeVisible();
+  await expect(page.getByText(/Refresh the page after each round to check the results/i)).toBeVisible();
   await expect(page.getByText('https://nationalbankbelgium.github.io/ai-dev-workshop-2026-09/')).toBeVisible();
   await expect(page.locator('.header-back')).toHaveText(/Back to workshop/i);
 
@@ -57,8 +58,13 @@ test('rotates prompts in place, copies feedback, and restores state after reload
   const secondFeature = await page.locator('.feature-card p').allTextContents();
   expect(secondFeature).not.toEqual(firstFeature);
 
-  await page.getByRole('button', { name: /Try another angle/ }).click();
-  await expect(page.locator('.featured-angle')).toBeVisible();
+  const firstAngles = await page.locator('.angle-row h3').allTextContents();
+  await expect(page.locator('.featured-angle')).toHaveCount(0);
+  await page.getByRole('button', { name: /Shuffle options/ }).click();
+  const secondAngles = await page.locator('.angle-row h3').allTextContents();
+  expect(secondAngles).toHaveLength(10);
+  expect(secondAngles).not.toEqual(firstAngles);
+  await expect(page.locator('.featured-angle')).toHaveCount(0);
   await page.getByRole('button', { name: /Copy starter prompt/ }).click();
   await expect(page.getByRole('button', { name: /Copied/ })).toBeVisible();
 
@@ -91,6 +97,8 @@ test('search and mobile layout remain usable', async ({ page }) => {
   await expect(page.locator('.idea-result')).toHaveCount(3);
 
   await page.setViewportSize({ width: 375, height: 812 });
+  await expect(page.locator('.header-topline')).toHaveCSS('flex-direction', 'column');
+  await expect(page.locator('.header-actions')).toHaveCSS('flex-direction', 'row');
   const dimensions = await page.evaluate(() => ({
     bodyWidth: document.body.scrollWidth,
     viewportWidth: window.innerWidth,

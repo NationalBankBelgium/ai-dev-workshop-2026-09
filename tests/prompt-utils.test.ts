@@ -7,6 +7,7 @@ import {
   buildStarterPrompt,
   filterIdeas,
   pickRandomIdea,
+  shuffleWithSeed,
   visibleDeckItems,
 } from '../src/prompt-utils';
 
@@ -59,5 +60,14 @@ describe('prompt and deck helpers', () => {
     expect(starterPrompt).not.toMatch(/^["“]/u);
     expect(starterPrompt).not.toMatch(/["”]$/u);
     expect(starterPrompt).toContain('Create');
+  });
+
+  it('shuffles angle options reproducibly without losing any option', () => {
+    const options = ['one', 'two', 'three', 'four', 'five'];
+    const shuffled = shuffleWithSeed(options, 12345);
+
+    expect(shuffled).not.toEqual(options);
+    expect([...shuffled].sort()).toEqual([...options].sort());
+    expect(shuffleWithSeed(options, 12345)).toEqual(shuffled);
   });
 });

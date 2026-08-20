@@ -51,6 +51,21 @@ export function advanceDeckOffset(currentOffset: number, itemCount: number, step
   return positiveModulo(currentOffset + step, itemCount);
 }
 
+export function shuffleWithSeed<T>(items: readonly T[], seed: number): T[] {
+  const shuffled = [...items];
+  let state = Math.trunc(seed) >>> 0;
+
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+    const swapIndex = state % (index + 1);
+    const currentItem = shuffled[index];
+    shuffled[index] = shuffled[swapIndex] as T;
+    shuffled[swapIndex] = currentItem as T;
+  }
+
+  return shuffled;
+}
+
 export function filterIdeas(ideas: readonly AppIdea[], query: string): AppIdea[] {
   const normalizedQuery = query.trim().toLocaleLowerCase();
   if (!normalizedQuery) {

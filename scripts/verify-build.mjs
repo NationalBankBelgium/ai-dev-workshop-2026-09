@@ -19,6 +19,7 @@ for (const marker of [
   'Fraunces',
   'Scan to start',
   'Recommended approach',
+  'Refresh the page after each round to check the results',
   'https://nationalbankbelgium.github.io/ai-dev-workshop-2026-09/',
   '<svg',
 ]) {
