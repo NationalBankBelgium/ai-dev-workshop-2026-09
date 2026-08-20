@@ -15,6 +15,7 @@ test('guides a group from the introduction to a selected idea', async ({ page })
   await expect(page.locator('.brand-logo')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
   await expect(page.locator('body')).toHaveCSS('font-family', /Barlow/);
   await expect(page.getByRole('link', { name: /Display QR \+ instructions/i })).toHaveAttribute('href', '#qr-code');
+  await expect(page.getByRole('link', { name: 'Source Code' })).toHaveAttribute('href', 'https://github.com/NationalBankBelgium/ai-dev-workshop-2026-09');
 
   await page.getByRole('button', { name: /Choose an app idea/ }).click();
   await expect(page.getByRole('heading', { name: /Find a spark/i })).toBeVisible();

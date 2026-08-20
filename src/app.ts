@@ -28,6 +28,7 @@ const stepLabels: Record<WorkshopStep, string> = {
 };
 
 const workshopUrl = 'https://nationalbankbelgium.github.io/ai-dev-workshop-2026-09/';
+const repositoryUrl = 'https://github.com/NationalBankBelgium/ai-dev-workshop-2026-09';
 
 function createAngleSeed(): number {
   return Math.floor(Math.random() * 0xffffffff) || 1;
@@ -112,6 +113,7 @@ export class WorkshopApp {
         </main>
         <footer class="site-footer">
           <span>AI development workshop · National Bank of Belgium · September 2026</span>
+          <a href="${repositoryUrl}" target="_blank" rel="noreferrer"><span aria-hidden="true">🐙</span> Source Code</a>
         </footer>
         <div id="copy-status" class="copy-status" role="status" aria-live="polite"></div>
       </div>
