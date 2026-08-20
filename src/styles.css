@@ -185,6 +185,10 @@ a {
   gap: 12px;
 }
 
+.action-text-compact {
+  display: none;
+}
+
 .header-back,
 .qr-link,
 .reset-button {
@@ -1370,20 +1374,31 @@ input:focus-visible {
 
   .header-actions {
     width: 100%;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
     align-items: stretch;
-    flex-direction: row;
-    flex-wrap: wrap;
     gap: 8px;
+  }
+
+  .header-actions > * {
+    width: 100%;
   }
 
   .header-back,
   .qr-link,
   .reset-button {
-    flex: 1 1 128px;
     justify-content: center;
     min-height: 36px;
     padding: 7px 9px;
     font-size: 0.75rem;
+  }
+
+  .action-text-wide {
+    display: none;
+  }
+
+  .action-text-compact {
+    display: inline;
   }
 
   .stepper {

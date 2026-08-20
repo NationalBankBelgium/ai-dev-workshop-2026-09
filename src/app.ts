@@ -29,6 +29,10 @@ const stepLabels: Record<WorkshopStep, string> = {
 
 const workshopUrl = 'https://nationalbankbelgium.github.io/ai-dev-workshop-2026-09/';
 
+function createAngleSeed(): number {
+  return Math.floor(Math.random() * 0xffffffff) || 1;
+}
+
 interface FocusRequest {
   selector: string;
   cursorAtEnd?: boolean;
@@ -65,7 +69,7 @@ export class WorkshopApp {
     this.root = root;
     this.storage = getBrowserStorage();
     this.ideaIds = new Set(config.ideas.map((idea) => idea.id));
-    this.state = readPersistedState(this.storage, this.ideaIds);
+    this.state = { ...readPersistedState(this.storage, this.ideaIds), angleOffset: createAngleSeed() };
     this.root.addEventListener('click', this.handleClick);
     this.root.addEventListener('input', this.handleInput);
     window.addEventListener('hashchange', this.handleHashChange);
@@ -131,10 +135,10 @@ export class WorkshopApp {
     const isQrView = this.isQrView();
     const currentStepIndex = stepOrder.indexOf(this.state.step);
     const backButton = isQrView
-      ? '<a class="header-back" href="#main-content"><span aria-hidden="true">←</span> Back to workshop</a>'
+      ? '<a class="header-back" href="#main-content" aria-label="Back to workshop"><span aria-hidden="true">←</span><span class="action-text action-text-wide" aria-hidden="true">Back to workshop</span><span class="action-text action-text-compact" aria-hidden="true">Back</span></a>'
       : this.state.step === 'intro'
         ? ''
-        : '<button type="button" class="header-back" data-action="back"><span aria-hidden="true">←</span> Back</button>';
+        : '<button type="button" class="header-back" data-action="back" aria-label="Back"><span aria-hidden="true">←</span><span class="action-text action-text-wide" aria-hidden="true">Back</span><span class="action-text action-text-compact" aria-hidden="true">Back</span></button>';
 
     const steps = stepOrder.map((step, index) => {
       const isCurrent = step === this.state.step;
@@ -161,8 +165,8 @@ export class WorkshopApp {
           </a>
           <div class="header-actions">
             ${backButton}
-            ${isQrView ? '' : '<a class="qr-link" href="#qr-code"><span aria-hidden="true">▦</span> Display QR + instructions</a>'}
-            <button type="button" class="reset-button" data-action="reset"><span aria-hidden="true">↺</span> Reset workshop</button>
+            ${isQrView ? '' : '<a class="qr-link" href="#qr-code" aria-label="Display QR + instructions"><span aria-hidden="true">▦</span><span class="action-text action-text-wide" aria-hidden="true">Display QR + instructions</span><span class="action-text action-text-compact" aria-hidden="true">QR + guide</span></a>'}
+            <button type="button" class="reset-button" data-action="reset" aria-label="Reset workshop"><span aria-hidden="true">↺</span><span class="action-text action-text-wide" aria-hidden="true">Reset workshop</span><span class="action-text action-text-compact" aria-hidden="true">Reset</span></button>
           </div>
         </div>
         ${isQrView ? '' : `<nav class="stepper" aria-label="Workshop progress">${steps}</nav>`}
@@ -358,7 +362,7 @@ export class WorkshopApp {
       const idea = ideaId ? config.ideas.find((candidate) => candidate.id === ideaId) : undefined;
       if (idea) {
         this.showAllFeaturesForIdeaId = null;
-        this.updateState({ ...this.state, selectedIdeaId: idea.id, secondActOffset: 0, angleOffset: 0 });
+        this.updateState({ ...this.state, selectedIdeaId: idea.id, secondActOffset: 0, angleOffset: createAngleSeed() });
       }
       return;
     }
@@ -442,7 +446,7 @@ export class WorkshopApp {
       step: 'choose',
       selectedIdeaId: selectedIdea?.id ?? null,
       secondActOffset: 0,
-      angleOffset: 0,
+      angleOffset: createAngleSeed(),
     });
   }
 
@@ -474,7 +478,7 @@ export class WorkshopApp {
       return;
     }
     this.showAllFeaturesForIdeaId = null;
-    this.updateState({ ...this.state, selectedIdeaId: nextIdea.id, secondActOffset: 0, angleOffset: 0 });
+    this.updateState({ ...this.state, selectedIdeaId: nextIdea.id, secondActOffset: 0, angleOffset: createAngleSeed() });
   }
 
   private rotateFeatures(): void {
@@ -490,7 +494,7 @@ export class WorkshopApp {
   }
 
   private rotateAngle(): void {
-    let nextSeed = Math.floor(Math.random() * 0xffffffff) || 1;
+    let nextSeed = createAngleSeed();
     if (nextSeed === this.state.angleOffset) {
       nextSeed = nextSeed === 0xffffffff ? 1 : nextSeed + 1;
     }

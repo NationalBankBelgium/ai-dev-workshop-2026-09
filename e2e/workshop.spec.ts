@@ -69,10 +69,12 @@ test('rotates prompts in place, copies feedback, and restores state after reload
   await expect(page.getByRole('button', { name: /Copied/ })).toBeVisible();
 
   const selectedTitle = await page.locator('.selected-app-header h1').textContent();
+  const anglesBeforeReload = await page.locator('.angle-row h3').allTextContents();
   await page.reload();
   await expect(page.getByRole('heading', { name: /Start with a clear prompt/i })).toBeVisible();
   await expect(page.locator('.selected-app-header h1')).toHaveText(selectedTitle ?? '');
   await expect(page.locator('.feature-card')).toHaveCount(4);
+  await expect.poll(() => page.locator('.angle-row h3').allTextContents()).not.toEqual(anglesBeforeReload);
 });
 
 test('reset clears the session and returns to the first step', async ({ page }) => {
@@ -98,7 +100,8 @@ test('search and mobile layout remain usable', async ({ page }) => {
 
   await page.setViewportSize({ width: 375, height: 812 });
   await expect(page.locator('.header-topline')).toHaveCSS('flex-direction', 'column');
-  await expect(page.locator('.header-actions')).toHaveCSS('flex-direction', 'row');
+  await expect(page.locator('.header-actions')).toHaveCSS('display', 'grid');
+  await expect(page.locator('.action-text-compact').first()).toBeVisible();
   const dimensions = await page.evaluate(() => ({
     bodyWidth: document.body.scrollWidth,
     viewportWidth: window.innerWidth,
