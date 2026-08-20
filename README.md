@@ -22,9 +22,10 @@ npm test
 npm run build
 npm run test:e2e
 npm run verify-build
+npm run generate:qr
 ```
 
-The production build is deliberately a single self-contained `dist/index.html`; Vite inlines the TypeScript bundle, CSS, official NBB logo, and local Barlow/Fraunces font files. The source remains split into typed modules for maintainability.
+The production build is deliberately a single self-contained `dist/index.html`; Vite inlines the TypeScript bundle, CSS, official NBB logo, local Barlow/Fraunces font files, and QR display artwork. The source remains split into typed modules for maintainability.
 
 ## Workshop behavior
 
@@ -55,6 +56,19 @@ Before the first deployment, set the repository’s Pages source to **GitHub Act
 `https://nationalbankbelgium.github.io/ai-dev-workshop-2026-09/`
 
 The publication handoff uses an HTTPS Git remote, one conventional launch commit, and an annotated `v1` tag. To roll back, publish/redeploy a prior known-good release through the same workflow.
+
+## Workshop display and QR code
+
+The app has a dedicated on-screen display at [`#qr-code`](https://nationalbankbelgium.github.io/ai-dev-workshop-2026-09/#qr-code). It shows the recommended workshop approach alongside a large QR code. From the app header, choose **Display QR + instructions** to open it without losing the current workshop session.
+
+[![QR code for the AI development workshop](src/assets/workshop-url-qr.svg)](https://nationalbankbelgium.github.io/ai-dev-workshop-2026-09/)
+
+The QR assets are kept in the repository for printing or reuse:
+
+- [SVG QR code](src/assets/workshop-url-qr.svg)
+- [PNG QR code](src/assets/workshop-url-qr.png)
+
+Regenerate both assets after changing the public URL with `npm run generate:qr`.
 
 ## Data source
 

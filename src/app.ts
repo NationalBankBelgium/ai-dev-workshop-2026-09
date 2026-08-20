@@ -1,4 +1,5 @@
 import logoUrl from './assets/nbb-logo-en.svg';
+import qrCodeSvg from './assets/workshop-url-qr.svg?raw';
 import { config } from './data';
 import {
   advanceDeckOffset,
@@ -24,6 +25,8 @@ const stepLabels: Record<WorkshopStep, string> = {
   choose: 'Choose an app',
   extend: 'Make it yours',
 };
+
+const workshopUrl = 'https://nationalbankbelgium.github.io/ai-dev-workshop-2026-09/';
 
 interface FocusRequest {
   selector: string;
@@ -71,6 +74,7 @@ export class WorkshopApp {
     this.state = readPersistedState(this.storage, this.ideaIds);
     this.root.addEventListener('click', this.handleClick);
     this.root.addEventListener('input', this.handleInput);
+    window.addEventListener('hashchange', this.handleHashChange);
   }
 
   public start(): void {
@@ -101,11 +105,12 @@ export class WorkshopApp {
   }
 
   private render(focusRequest?: FocusRequest): void {
+    const content = this.isQrView() ? this.renderQrView() : this.renderStep();
     this.root.innerHTML = `
       <div class="app-shell">
         ${this.renderHeader()}
         <main id="main-content" class="main-content" tabindex="-1">
-          ${this.renderStep()}
+          ${content}
         </main>
         <footer class="site-footer">
           <span>AI development workshop · National Bank of Belgium · September 2026</span>
@@ -124,11 +129,18 @@ export class WorkshopApp {
     }
   }
 
+  private isQrView(): boolean {
+    return window.location.hash === '#qr-code';
+  }
+
   private renderHeader(): string {
+    const isQrView = this.isQrView();
     const currentStepIndex = stepOrder.indexOf(this.state.step);
-    const backButton = this.state.step === 'intro'
-      ? ''
-      : '<button type="button" class="header-back" data-action="back"><span aria-hidden="true">←</span> Back</button>';
+    const backButton = isQrView
+      ? '<a class="header-back" href="#main-content"><span aria-hidden="true">←</span> Back to workshop</a>'
+      : this.state.step === 'intro'
+        ? ''
+        : '<button type="button" class="header-back" data-action="back"><span aria-hidden="true">←</span> Back</button>';
 
     const steps = stepOrder.map((step, index) => {
       const isCurrent = step === this.state.step;
@@ -155,13 +167,40 @@ export class WorkshopApp {
           </a>
           <div class="header-actions">
             ${backButton}
+            ${isQrView ? '' : '<a class="qr-link" href="#qr-code"><span aria-hidden="true">▦</span> Display QR + instructions</a>'}
             <button type="button" class="reset-button" data-action="reset"><span aria-hidden="true">↺</span> Reset workshop</button>
           </div>
         </div>
-        <nav class="stepper" aria-label="Workshop progress">
-          ${steps}
-        </nav>
+        ${isQrView ? '' : `<nav class="stepper" aria-label="Workshop progress">${steps}</nav>`}
       </header>
+    `;
+  }
+
+  private renderQrView(): string {
+    return `
+      <section id="qr-code" class="step-panel qr-panel" aria-labelledby="qr-title">
+        <div class="qr-copy">
+          <span class="eyebrow">SHARE THE WORKSHOP</span>
+          <h1 id="qr-title">Scan to start.</h1>
+          <p class="qr-lead">Put this page on a shared screen. Everyone can scan the code to open the workshop on their own device.</p>
+          <section class="qr-instructions" aria-labelledby="approach-title">
+            <h2 id="approach-title">Recommended approach</h2>
+            <ol>
+              <li>Start by choosing an application to build.</li>
+              <li>Create a folder on your machine; that's where you will build the application.</li>
+              <li>Open the folder you've created with Visual Studio Code.</li>
+              <li>Those who prefer the command line may also choose to use the GitHub Copilot CLI.</li>
+              <li>Start a GitHub Copilot conversation.</li>
+              <li>Build a first version of the application, respecting the constraints (if any).</li>
+              <li>Open it and test it.</li>
+              <li>Make it evolve, be creative, have fun with it!</li>
+            </ol>
+          </section>
+          <div class="qr-url-block"><span class="eyebrow">WORKSHOP URL</span><a href="${workshopUrl}" target="_blank" rel="noreferrer">${workshopUrl}</a></div>
+          <a class="primary-button" href="#main-content">Back to workshop <span aria-hidden="true">→</span></a>
+        </div>
+        <div class="qr-card" role="img" aria-label="QR code linking to the AI development workshop">${qrCodeSvg}</div>
+      </section>
     `;
   }
 
@@ -308,6 +347,10 @@ export class WorkshopApp {
     this.searchQuery = target.value;
     this.showAllIdeas = false;
     this.render({ selector: '[data-search]', cursorAtEnd: true });
+  };
+
+  private handleHashChange = (): void => {
+    this.render();
   };
 
   private handleClick = (event: MouseEvent): void => {
@@ -461,6 +504,9 @@ export class WorkshopApp {
   }
 
   private reset(): void {
+    if (this.isQrView()) {
+      window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
+    }
     this.state = resetPersistedState(this.storage);
     this.searchQuery = '';
     this.showAllIdeas = false;

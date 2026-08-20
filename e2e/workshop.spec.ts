@@ -14,6 +14,7 @@ test('guides a group from the introduction to a selected idea', async ({ page })
   await expect(page.locator('.stepper')).toHaveCSS('background-color', 'rgb(0, 45, 90)');
   await expect(page.locator('.brand-logo')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
   await expect(page.locator('body')).toHaveCSS('font-family', /Barlow/);
+  await expect(page.getByRole('link', { name: /Display QR \+ instructions/i })).toHaveAttribute('href', '#qr-code');
 
   await page.getByRole('button', { name: /Choose an app idea/ }).click();
   await expect(page.getByRole('heading', { name: /Find a spark/i })).toBeVisible();
@@ -28,6 +29,23 @@ test('guides a group from the introduction to a selected idea', async ({ page })
   await expect(page.getByRole('heading', { name: /Start with a clear prompt/i })).toBeVisible();
   await expect(page.locator('.feature-card')).toHaveCount(4);
   await expect(page.locator('.angle-row')).toHaveCount(10);
+});
+
+test('opens a scan-ready QR display view', async ({ page }) => {
+  await page.getByRole('link', { name: /Display QR \+ instructions/i }).click();
+
+  await expect(page).toHaveURL(/#qr-code$/);
+  await expect(page.getByRole('heading', { name: /Scan to start/i })).toBeVisible();
+  await expect(page.getByRole('img', { name: /QR code linking/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Recommended approach/i })).toBeVisible();
+  await expect(page.getByRole('listitem')).toHaveCount(8);
+  await expect(page.getByText(/Open the folder you've created with Visual Studio Code/i)).toBeVisible();
+  await expect(page.getByText('https://nationalbankbelgium.github.io/ai-dev-workshop-2026-09/')).toBeVisible();
+  await expect(page.locator('.header-back')).toHaveText(/Back to workshop/i);
+
+  await page.getByRole('button', { name: /Reset workshop/i }).click();
+  await expect(page).not.toHaveURL(/#qr-code$/);
+  await expect(page.getByRole('heading', { name: /Build a small idea/i })).toBeVisible();
 });
 
 test('rotates prompts in place, copies feedback, and restores state after reload', async ({ page }) => {
